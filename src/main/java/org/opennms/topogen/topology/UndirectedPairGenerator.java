@@ -26,7 +26,7 @@
  *     http://www.opennms.com/
  *******************************************************************************/
 
-package org.opennms.topogen;
+package org.opennms.topogen.topology;
 
 import java.util.List;
 
@@ -47,7 +47,7 @@ public class UndirectedPairGenerator<E> implements PairGenerator<E> {
         return Pair.of(elements.get(indexLeft), elements.get(indexRight));
     }
 
-    UndirectedPairGenerator(List<E> elements){
+    public UndirectedPairGenerator(List<E> elements){
         if(elements == null || elements.size()<2){
             throw new IllegalArgumentException("Need at least 2 elements in list to make a pair");
         }

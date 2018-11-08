@@ -32,12 +32,17 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.sql.DataSource;
 
 import org.opennms.netmgt.model.CdpElement;
 import org.opennms.netmgt.model.CdpLink;
+import org.opennms.netmgt.model.IsIsElement;
+import org.opennms.netmgt.model.IsIsLink;
+import org.opennms.netmgt.model.LldpElement;
+import org.opennms.netmgt.model.LldpLink;
 import org.opennms.netmgt.model.OnmsNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,11 +53,23 @@ import com.zaxxer.hikari.HikariDataSource;
 public class TopologyPersister {
 
     private final static String NODES_INSERT = "INSERT INTO node (nodeid, nodelabel, location, nodecreatetime) VALUES (?, ?, ?, now());";
-    private final static String NODES_DELETE = "delete from node;";
-    private final static String ELEMENTS_INSERT = "INSERT INTO cdpelement (id, nodeid, cdpglobalrun, cdpglobaldeviceid, cdpnodelastpolltime, cdpnodecreatetime) VALUES (?, ?, ?, ?, ?, now());";
-    private final static String ELEMENTS_DELETE = "delete from cdpelement;";
-    private final static String LINKS_INSERT = "INSERT INTO cdplink (id, nodeid, cdpcacheifindex, cdpinterfacename, cdpcacheaddresstype, cdpcacheaddress, cdpcacheversion, cdpcachedeviceid, cdpcachedeviceport, cdpcachedeviceplatform, cdplinklastpolltime, cdpcachedeviceindex, cdplinkcreatetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now());";
-    private final static String LINKS_DELETE = "delete from cdplink;";
+    private final static String NODES_DELETE = "DELETE FROM node;";
+    private final static String CDP_ELEMENTS_INSERT = "INSERT INTO cdpelement (id, nodeid, cdpglobalrun, cdpglobaldeviceid, cdpnodelastpolltime, cdpnodecreatetime) VALUES (?, ?, ?, ?, ?, now());";
+    private final static String CDP_ELEMENTS_DELETE = "DELETE FROM cdpelement;";
+    private final static String CDP_LINKS_INSERT = "INSERT INTO cdplink (id, nodeid, cdpcacheifindex, cdpinterfacename, cdpcacheaddresstype, cdpcacheaddress, cdpcacheversion, cdpcachedeviceid, cdpcachedeviceport, cdpcachedeviceplatform, cdplinklastpolltime, cdpcachedeviceindex, cdplinkcreatetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now());";
+    private final static String CDP_LINKS_DELETE = "DELETE FROM cdplink;";
+    private final static String ISIS_ELEMENTS_INSERT = "INSERT INTO isiselement (id, nodeId, isisSysAdminState, isisSysID, isisNodeLastPollTime, isisNodeCreateTime) VALUES (?, ?, ?, ?, ?, now());";
+    private final static String ISIS_ELEMENTS_DELETE = "DELETE FROM isiselement;";
+    private final static String ISIS_LINKS_INSERT = "INSERT INTO isislink (id, nodeId, isisCircIndex, isisISAdjIndex, isisCircIfIndex, isisCircAdminState, isisISAdjState, isisISAdjNeighSNPAAddress, isisISAdjNeighSysType, isisISAdjNeighSysID," +
+            "isisISAdjNbrExtendedCircID, isisLinkLastPollTime, isisLinkCreateTime ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now());";
+    private final static String ISIS_LINKS_DELETE = "DELETE FROM isislink;";
+
+    private final static String LLDP_ELEMENTS_INSERT = "INSERT INTO lldpelement (id, nodeId, lldpChassisIdSubType, lldpSysname, lldpChassisId, lldpNodeLastPollTime, lldpNodeCreateTime) VALUES (?, ?, ?, ?, ?, ?, now());";
+    private final static String LLDP_ELEMENTS_DELETE = "DELETE FROM lldpelement;";
+    private final static String LLDP_LINKS_INSERT = "INSERT INTO lldplink (id, nodeId, lldpLocalPortNum, lldpPortIdSubType, lldpPortId, lldpPortDescr, lldpPortIfindex, lldpRemChassisId, lldpRemSysname, lldpRemChassisIdSubType, lldpRemPortIdSubType," +
+            " lldpRemPortId, lldpRemPortDescr, lldpLinkLastPollTime, lldpLinkCreateTime ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now());";
+    private final static String LLDP_LINKS_DELETE = "DELETE FROM lldplink;";
+
 
     private final static Logger LOG = LoggerFactory.getLogger(TopologyPersister.class);
 
@@ -85,8 +102,8 @@ public class TopologyPersister {
         });
     }
 
-    public void persistElements(List<CdpElement> elements) throws SQLException {
-        batchInsert(ELEMENTS_INSERT, elements, new BiConsumerWithException<PreparedStatement, CdpElement>() {
+    public void persistCdpElements(List<CdpElement> elements) throws SQLException {
+        batchInsert(CDP_ELEMENTS_INSERT, elements, new BiConsumerWithException<PreparedStatement, CdpElement>() {
             @Override
             public void accept(PreparedStatement stmt, CdpElement element) throws SQLException {
                 stmt.setInt(1, element.getId());
@@ -98,8 +115,35 @@ public class TopologyPersister {
         });
     }
 
-    public void persistLinks(List<CdpLink> links) throws SQLException {
-        batchInsert(LINKS_INSERT, links, new BiConsumerWithException<PreparedStatement, CdpLink>() {
+    public void persistIsIsElements(List<IsIsElement> elements) throws SQLException {
+        batchInsert(ISIS_ELEMENTS_INSERT, elements, new BiConsumerWithException<PreparedStatement, IsIsElement>() {
+            @Override
+            public void accept(PreparedStatement stmt, IsIsElement element) throws SQLException {
+                stmt.setInt(1, element.getId());
+                stmt.setInt(2, element.getNode().getId());
+                stmt.setInt(3, element.getIsisSysAdminState().getValue());
+                stmt.setString(4, element.getIsisSysID());
+                stmt.setDate(5, new java.sql.Date(element.getIsisNodeLastPollTime().getTime()));
+            }
+        });
+    }
+
+    public void persistLldpElements(List<LldpElement> elements) throws SQLException {
+        batchInsert(LLDP_ELEMENTS_INSERT, elements, new BiConsumerWithException<PreparedStatement, LldpElement>() {
+            @Override
+            public void accept(PreparedStatement stmt, LldpElement element) throws SQLException {
+                stmt.setInt(1, element.getId());
+                stmt.setInt(2, element.getNode().getId());
+                stmt.setInt(3, element.getLldpChassisIdSubType().getValue());
+                stmt.setString(4, element.getLldpSysname());
+                stmt.setString(5, element.getLldpChassisId());
+                stmt.setDate(6, new java.sql.Date(element.getLldpNodeLastPollTime().getTime()));
+            }
+        });
+    }
+
+    public void persistCdpLinks(List<CdpLink> links) throws SQLException {
+        batchInsert(CDP_LINKS_INSERT, links, new BiConsumerWithException<PreparedStatement, CdpLink>() {
             @Override
             public void accept(PreparedStatement stmt, CdpLink link) throws SQLException {
                 int i = 1;
@@ -119,13 +163,58 @@ public class TopologyPersister {
         });
     }
 
+    public void persistIsIsLinks(List<IsIsLink> links) throws SQLException {
+        batchInsert(ISIS_LINKS_INSERT, links, new BiConsumerWithException<PreparedStatement, IsIsLink>() {
+            @Override
+            public void accept(PreparedStatement stmt, IsIsLink link) throws SQLException {
+                int i = 1;
+                stmt.setInt(i++, link.getId());
+                stmt.setInt(i++, link.getNode().getId());
+                stmt.setInt(i++, link.getIsisCircIndex());
+                stmt.setInt(i++, link.getIsisISAdjIndex());
+                stmt.setInt(i++, link.getIsisCircIfIndex());
+                stmt.setInt(i++, link.getIsisCircAdminState().getValue());
+                stmt.setInt(i++, link.getIsisISAdjState().getValue());
+                stmt.setString(i++, link.getIsisISAdjNeighSNPAAddress());
+                stmt.setInt(i++, link.getIsisISAdjNeighSysType().getValue());
+                stmt.setString(i++, link.getIsisISAdjNeighSysID());
+                stmt.setInt(i++, link.getIsisISAdjNbrExtendedCircID());
+                stmt.setDate(i++, new java.sql.Date(link.getIsisLinkLastPollTime().getTime()));
+            }
+        });
+    }
+
+    public void persistLldpLinks(List<LldpLink> links) throws SQLException {
+        batchInsert(LLDP_LINKS_INSERT, links, new BiConsumerWithException<PreparedStatement, LldpLink>() {
+            @Override
+            public void accept(PreparedStatement stmt, LldpLink link) throws SQLException {
+                int i = 1;
+                stmt.setInt(i++, link.getId());
+                stmt.setInt(i++, link.getNode().getId());
+                stmt.setInt(i++, link.getLldpLocalPortNum());
+                stmt.setInt(i++, link.getLldpPortIdSubType().getValue());
+                stmt.setString(i++, link.getLldpPortId());
+                stmt.setString(i++, link.getLldpPortDescr());
+                stmt.setInt(i++, link.getLldpPortIfindex());
+                stmt.setString(i++, link.getLldpRemChassisId());
+                stmt.setString(i++, link.getLldpRemSysname());
+                stmt.setInt(i++, link.getLldpRemChassisIdSubType().getValue());
+                stmt.setInt(i++, link.getLldpRemPortIdSubType().getValue());
+                stmt.setString(i++, link.getLldpRemPortId());
+                stmt.setString(i++, link.getLldpRemPortDescr());
+                stmt.setDate(i++, new java.sql.Date(link.getLldpLinkLastPollTime().getTime()));
+            }
+        });
+    }
+
+
     @FunctionalInterface
     public interface BiConsumerWithException<T, R> {
         void accept(T t, R r) throws SQLException;
     }
 
     private <T> void batchInsert(String statement, List<T> elements, BiConsumerWithException<PreparedStatement, T> statementFiller) throws SQLException {
-        if(elements.size()==0){
+        if (elements.size() == 0) {
             return;
         }
         LOG.info("inserting {} {}s", elements.size(), elements.get(0).getClass().getSimpleName());
@@ -151,18 +240,17 @@ public class TopologyPersister {
 
     public void deleteTopology() throws SQLException {
         LOG.info("deleting existing topology");
-        try (Connection c = ds.getConnection()) {
-            try (PreparedStatement insStmt = c.prepareStatement(NODES_DELETE)) {
-                insStmt.execute();
-            }
-            try (PreparedStatement insStmt = c.prepareStatement(ELEMENTS_DELETE)) {
-                insStmt.execute();
-            }
-            try (PreparedStatement insStmt = c.prepareStatement(LINKS_DELETE)) {
-                insStmt.execute();
-            }
-        }
+        List<String> deleteOperations = Arrays.asList(NODES_DELETE, CDP_ELEMENTS_DELETE, CDP_LINKS_DELETE,
+                ISIS_ELEMENTS_DELETE, ISIS_LINKS_DELETE, LLDP_ELEMENTS_DELETE, LLDP_LINKS_DELETE);
 
+        try (Connection c = ds.getConnection()) {
+            for (String sql : deleteOperations) {
+                try (PreparedStatement insStmt = c.prepareStatement(sql)) {
+                    insStmt.execute();
+                }
+            }
+
+        }
     }
 }
 

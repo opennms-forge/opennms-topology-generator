@@ -32,20 +32,13 @@ import static org.kohsuke.args4j.OptionHandlerFilter.ALL;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
-import org.opennms.netmgt.model.CdpElement;
-import org.opennms.netmgt.model.CdpLink;
-import org.opennms.netmgt.model.OnmsNode;
-import org.opennms.netmgt.model.OspfElement;
-import org.opennms.netmgt.model.monitoringLocations.OnmsMonitoringLocation;
+import org.opennms.topogen.protocol.CdpProtocol;
+import org.opennms.topogen.protocol.IsIsProtocol;
+import org.opennms.topogen.protocol.LldpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,8 +48,12 @@ public class TopologyGenerator {
 
     private final static Logger LOG = LoggerFactory.getLogger(TopologyGenerator.class);
 
-    private enum Topology{
+    public enum Topology{
         ring, random, complete
+    }
+
+    public enum Protocol{
+        cdp, isis, lldp
     }
 
     private TopologyPersister persister;
@@ -66,11 +63,15 @@ public class TopologyGenerator {
     private int amountElements = -1;
     @Option(name="--links",usage="generate <N> CdpLinks")
     private int amountLinks = -1;
-    @Option(name="--topology",usage="type of topology (complete | ring | random), default = random")
+    @Option(name="--topology",usage="type of topology (complete | ring | random)")
     @Setter
     private String topology = "random";
+    @Option(name="--protocol",usage="type of protocol (cdp | isis | lldp)")
+    @Setter
+    private String protocol = "cdp";
     @Option(name="--delete",usage="delete existing toplogogy (all OnmsNodes, CdpElements and CdpLinks)")
     private boolean deleteExistingTolology = false;
+
 
     public TopologyGenerator(TopologyPersister persister) throws IOException {
         this.persister = persister;
@@ -92,6 +93,27 @@ public class TopologyGenerator {
         Topology.valueOf(topology); // check if valid parameter
     }
 
+    private void createNetwork() throws SQLException {
+        if(deleteExistingTolology){
+            this.persister.deleteTopology();
+        }
+        getProtocol().createAndPersistNetwork();
+    }
+
+    private org.opennms.topogen.protocol.Protocol getProtocol(){
+        if(Protocol.cdp.name().equals(this.protocol)){
+            return new CdpProtocol( Topology.valueOf(topology),
+            amountNodes, amountLinks, amountElements, persister);
+        } else if (Protocol.isis.name().equals(this.protocol)) {
+            return new IsIsProtocol( Topology.valueOf(topology),
+                    amountNodes, amountLinks, amountElements, persister);
+        }else if (Protocol.lldp.name().equals(this.protocol)) {
+            return new LldpProtocol( Topology.valueOf(topology),
+                    amountNodes, amountLinks, amountElements, persister);
+        } else {
+            throw new IllegalArgumentException("Don't know this protocol: " + this.protocol);
+        }
+    }
 
     private void doMain(String[] args) {
         CmdLineParser parser = new CmdLineParser(this);
@@ -118,135 +140,6 @@ public class TopologyGenerator {
         TopologyGenerator generator = new TopologyGenerator(new TopologyPersister());
         generator.doMain(args);
         generator.assertSetup();
-        generator.createCdpNetwork();
-    }
-
-    private void createCdpNetwork() throws SQLException {
-        if(deleteExistingTolology){
-            deleteExistingToplogy();
-        }
-        LOG.info("creating {} topology with {} {}s, {} {}s and {} {}s.",
-                this.topology,
-                this.amountNodes, OnmsNode.class.getSimpleName() ,
-                this.amountElements, CdpElement.class.getSimpleName(),
-                this.amountLinks, CdpLink.class.getSimpleName());
-        OnmsMonitoringLocation location = createMonitoringLocation();
-        List<OnmsNode> nodes = createNodes(location);
-        persister.persistNodes(nodes);
-        List<CdpElement> cdpElements = createCdpElements(nodes);
-        persister.persistElements(cdpElements);
-        List<CdpLink> links = createCdpLinks(cdpElements);
-        persister.persistLinks(links);
-    }
-
-    private OnmsMonitoringLocation createMonitoringLocation() {
-        OnmsMonitoringLocation location = new OnmsMonitoringLocation();
-        location.setLocationName("Default");
-        location.setMonitoringArea("localhost");
-        return location;
-    }
-
-    private List<OnmsNode> createNodes(OnmsMonitoringLocation location) {
-
-        ArrayList<OnmsNode> nodes = new ArrayList<>();
-        for (int i = 0; i < amountNodes; i++) {
-            nodes.add(createNode(i, location));
-        }
-        return nodes;
-    }
-
-    private OnmsNode createNode(int count, OnmsMonitoringLocation location) {
-
-        OnmsNode node = new OnmsNode();
-        node.setId(count); // we assume we have an empty database and can just generate the ids
-        node.setLabel("Node" + count);
-        node.setLocation(location);
-        return node;
-    }
-
-    private List<CdpElement> createCdpElements(List<OnmsNode> nodes) {
-        ArrayList<CdpElement> cdpElements = new ArrayList<>();
-        for (int i = 0; i < amountElements; i++) {
-            OnmsNode node = nodes.get(i);
-            cdpElements.add(createCdpElement(node));
-        }
-        return cdpElements;
-    }
-
-    private CdpElement createCdpElement(OnmsNode node) {
-        CdpElement cdpElement = new CdpElement();
-        cdpElement.setId(node.getId()); // we use the same id for simplicity
-        cdpElement.setNode(node);
-        cdpElement.setCdpGlobalDeviceId("CdpElementForNode" + node.getId());
-        cdpElement.setCdpGlobalRun(OspfElement.TruthValue.FALSE);
-        cdpElement.setCdpNodeLastPollTime(new Date());
-        return cdpElement;
-    }
-
-    private List<CdpLink> createCdpLinks(List<CdpElement> cdpElements) {
-        PairGenerator<CdpElement> pairs = createPairGenerator(cdpElements);
-        List<CdpLink> links = new ArrayList<>();
-        for (int i = 0; i < amountLinks; i++) {
-
-            // We create 2 links that reference each other, see also LinkdToplologyProvider.matchCdpLinks()
-            Pair<CdpElement, CdpElement> pair = pairs.next();
-            CdpElement sourceCdpElement = pair.getLeft();
-            CdpElement targetCdpElement = pair.getRight();
-            CdpLink sourceLink = createCdpLink(i++,
-                    sourceCdpElement.getNode(),
-                    UUID.randomUUID().toString(),
-                    UUID.randomUUID().toString(),
-                    targetCdpElement.getCdpGlobalDeviceId()
-            );
-            links.add(sourceLink);
-
-            String targetCdpCacheDevicePort = sourceLink.getCdpInterfaceName();
-            String targetCdpInterfaceName = sourceLink.getCdpCacheDevicePort();
-            String targetCdpGlobalDeviceId = sourceCdpElement.getCdpGlobalDeviceId();
-            CdpLink targetLink = createCdpLink(i,
-                    targetCdpElement.getNode(),
-                    targetCdpInterfaceName,
-                    targetCdpCacheDevicePort,
-                    targetCdpGlobalDeviceId
-                    );
-            links.add(targetLink);
-            LOG.debug("Linked node {} with node {}", sourceCdpElement.getNode().getLabel(), targetCdpElement.getNode().getLabel());
-        }
-        return links;
-    }
-
-    private PairGenerator<CdpElement> createPairGenerator(List<CdpElement> elements){
-        if(Topology.complete.name().equals(topology)){
-            return new UndirectedPairGenerator<>(elements);
-        } else if(Topology.ring.name().equals(topology)) {
-            return new LinkedPairGenerator<>(elements);
-        } else if (Topology.random.name().equals(topology)){
-            return new RandomConnectedPairGenerator<>(elements);
-        } else {
-            throw new IllegalArgumentException("unknown topology: "+ topology);
-        }
-    }
-
-    private CdpLink createCdpLink(int id, OnmsNode node, String cdpInterfaceName, String cdpCacheDevicePort,
-                                  String cdpCacheDeviceId) {
-        CdpLink link = new CdpLink();
-        link.setId(id);
-        link.setCdpCacheDeviceId(cdpCacheDeviceId);
-        link.setCdpInterfaceName(cdpInterfaceName);
-        link.setCdpCacheDevicePort(cdpCacheDevicePort);
-        link.setNode(node);
-        link.setCdpCacheAddressType(CdpLink.CiscoNetworkProtocolType.chaos);
-        link.setCdpCacheAddress("CdpCacheAddress");
-        link.setCdpCacheDeviceIndex(33);
-        link.setCdpCacheDevicePlatform("CdpCacheDevicePlatform");
-        link.setCdpCacheIfIndex(33);
-        link.setCdpCacheVersion("CdpCacheVersion");
-        link.setCdpLinkLastPollTime(new Date());
-        return link;
-    }
-
-
-    public void deleteExistingToplogy() throws SQLException {
-        this.persister.deleteTopology();
+        generator.createNetwork();
     }
 }

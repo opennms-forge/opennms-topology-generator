@@ -26,44 +26,45 @@
  *     http://www.opennms.com/
  *******************************************************************************/
 
-package org.opennms.topogen;
+package org.opennms.topogen.topology;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 
 import org.apache.commons.lang3.tuple.Pair;
 
-public class LinkedPairGenerator<E> implements PairGenerator<E>{
-
+/** pairs elements randomly but not the same element to itself */
+public class RandomConnectedPairGenerator<E> implements PairGenerator<E>{
     private final List<E> elements;
-    private final int lastIndexInList;
-    private int indexLeft = -1;
-    private int indexRight = 0;
+    private Random random = new Random(42);
 
-    @Override
-    public Pair<E, E> next(){
-        compute();
-        return Pair.of(elements.get(indexLeft), elements.get(indexRight));
-    }
-
-    LinkedPairGenerator(List<E> elements){
+    public RandomConnectedPairGenerator(List<E> elements){
         if(elements == null || elements.size()<2){
             throw new IllegalArgumentException("Need at least 2 elements in list to make a pair");
         }
-        this.elements = elements;
-        lastIndexInList = elements.size() - 1;
-
-    }
-
-    private void compute() {
-        indexLeft = next(indexLeft);
-        indexRight = next(indexRight);
-    }
-
-    private int next(int i){
-        if(i==lastIndexInList){
-            return 0;
+        if(new HashSet<>(elements).size() < elements.size()){
+            throw new IllegalArgumentException("List contains at least one duplicate");
         }
-        return ++i;
+        this.elements = elements;
     }
 
+    @Override
+    public Pair<E, E> next(){
+        E leftElement = getRandomElement(elements);
+        E rightElement = getRandomElementButNotSame(elements, leftElement);
+        return Pair.of(leftElement, rightElement);
+    }
+
+    private E getRandomElementButNotSame(List<E> elements,  E notSame){
+        E value = getRandomElement(elements);
+        while (value.equals(notSame)){
+            value = getRandomElement(elements);
+        }
+        return value;
+    }
+
+    private E getRandomElement(List<E> list) {
+        return list.get(random.nextInt(list.size()));
+    }
 }

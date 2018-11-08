@@ -16,4 +16,5 @@ elements       | amount of elements to create, must not be larger than amount of
 links          | amount of links                                                          | ((amount of elements)²-amount of elements)/2
 delete         | delete existing topology                                                 | false
 topology       | which type of topology to create, possible values: `random`, `ring`, `complete` | random
+protocol       | what protocol should be generated, possible values: cdp, isis, lldp      | cdp
 
