@@ -93,7 +93,6 @@ public class LldpProtocol extends Protocol<LldpElement> {
     private List<LldpLink> createLinks(List<LldpElement> elements) {
         PairGenerator<LldpElement> pairs = createPairGenerator(elements);
         List<LldpLink> links = new ArrayList<>();
-        int id=0;
         for (int i = 0; i < amountLinks; i++) {
 
             // We create 2 links that reference each other, see also LinkdToplologyProvider.match...Links()
@@ -106,12 +105,12 @@ public class LldpProtocol extends Protocol<LldpElement> {
             LldpUtils.LldpPortIdSubType portIdSubType = LldpUtils.LldpPortIdSubType.LLDP_PORTID_SUBTYPE_MACADDRESS;
             LldpUtils.LldpPortIdSubType portIdSubTypeRemote = LldpUtils.LldpPortIdSubType.LLDP_PORTID_SUBTYPE_MACADDRESS;
 
-            LldpLink sourceLink = createLink(id++,
+            LldpLink sourceLink = createLink(i,
                     sourceElement.getNode(),
                     portId, portIdSubType, portIdRemote, portIdSubTypeRemote, targetElement.getLldpChassisId()
             );
             links.add(sourceLink);
-            LldpLink targetLink = createLink(id++,
+            LldpLink targetLink = createLink(++i,
                     targetElement.getNode(),
                     portIdRemote, portIdSubTypeRemote, portId, portIdSubType, sourceElement.getLldpChassisId()
             );

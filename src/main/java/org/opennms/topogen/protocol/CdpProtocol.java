@@ -90,14 +90,13 @@ public class CdpProtocol extends Protocol<CdpElement> {
     private List<CdpLink> createCdpLinks(List<CdpElement> cdpElements) {
         PairGenerator<CdpElement> pairs = createPairGenerator(cdpElements);
         List<CdpLink> links = new ArrayList<>();
-        int id=0;
         for (int i = 0; i < amountLinks; i++) {
 
             // We create 2 links that reference each other, see also LinkdToplologyProvider.matchCdpLinks()
             Pair<CdpElement, CdpElement> pair = pairs.next();
             CdpElement sourceCdpElement = pair.getLeft();
             CdpElement targetCdpElement = pair.getRight();
-            CdpLink sourceLink = createCdpLink(id++,
+            CdpLink sourceLink = createCdpLink(i,
                     sourceCdpElement.getNode(),
                     UUID.randomUUID().toString(),
                     UUID.randomUUID().toString(),
@@ -108,7 +107,7 @@ public class CdpProtocol extends Protocol<CdpElement> {
             String targetCdpCacheDevicePort = sourceLink.getCdpInterfaceName();
             String targetCdpInterfaceName = sourceLink.getCdpCacheDevicePort();
             String targetCdpGlobalDeviceId = sourceCdpElement.getCdpGlobalDeviceId();
-            CdpLink targetLink = createCdpLink(id++,
+            CdpLink targetLink = createCdpLink(++i,
                     targetCdpElement.getNode(),
                     targetCdpInterfaceName,
                     targetCdpCacheDevicePort,

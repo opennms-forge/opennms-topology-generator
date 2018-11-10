@@ -240,13 +240,13 @@ public class TopologyPersister {
 
     public void deleteTopology() throws SQLException {
         LOG.info("deleting existing topology");
-        List<String> deleteOperations = Arrays.asList(NODES_DELETE, CDP_ELEMENTS_DELETE, CDP_LINKS_DELETE,
-                ISIS_ELEMENTS_DELETE, ISIS_LINKS_DELETE, LLDP_ELEMENTS_DELETE, LLDP_LINKS_DELETE);
+        List<String> deleteOperations = Arrays.asList(CDP_LINKS_DELETE,
+                ISIS_LINKS_DELETE, LLDP_LINKS_DELETE, CDP_ELEMENTS_DELETE, ISIS_ELEMENTS_DELETE, LLDP_ELEMENTS_DELETE, NODES_DELETE);
 
         try (Connection c = ds.getConnection()) {
             for (String sql : deleteOperations) {
-                try (PreparedStatement insStmt = c.prepareStatement(sql)) {
-                    insStmt.execute();
+                try (PreparedStatement stmt = c.prepareStatement(sql)) {
+                    stmt.execute();
                 }
             }
 

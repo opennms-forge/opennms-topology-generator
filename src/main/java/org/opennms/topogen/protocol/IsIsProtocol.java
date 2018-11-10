@@ -88,20 +88,20 @@ public class IsIsProtocol extends Protocol<IsIsElement> {
     private List<IsIsLink> createLinks(List<IsIsElement> elements) {
         PairGenerator<IsIsElement> pairs = createPairGenerator(elements);
         List<IsIsLink> links = new ArrayList<>();
-        int id=0;
+
         for (int i = 0; i < amountLinks; i++) {
 
             // We create 2 links that reference each other, see also LinkdToplologyProvider.match...Links()
             Pair<IsIsElement, IsIsElement> pair = pairs.next();
             IsIsElement sourceElement = pair.getLeft();
             IsIsElement targetElement = pair.getRight();
-            IsIsLink sourceLink = createLink(id++,
+            IsIsLink sourceLink = createLink(i,
                     sourceElement.getNode(),
                     i, targetElement.getIsisSysID()
             );
             links.add(sourceLink);
 
-            IsIsLink targetLink = createLink(id++,
+            IsIsLink targetLink = createLink(++i,
                     targetElement.getNode(),
                     i,
                     sourceElement.getIsisSysID()
