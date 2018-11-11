@@ -88,6 +88,7 @@ public class IsIsProtocol extends Protocol<IsIsElement> {
     private List<IsIsLink> createLinks(List<IsIsElement> elements) {
         PairGenerator<IsIsElement> pairs = createPairGenerator(elements);
         List<IsIsLink> links = new ArrayList<>();
+        Integer isisISAdjIndex = 0;
 
         for (int i = 0; i < amountLinks; i++) {
 
@@ -95,15 +96,16 @@ public class IsIsProtocol extends Protocol<IsIsElement> {
             Pair<IsIsElement, IsIsElement> pair = pairs.next();
             IsIsElement sourceElement = pair.getLeft();
             IsIsElement targetElement = pair.getRight();
+            isisISAdjIndex++;
             IsIsLink sourceLink = createLink(i,
                     sourceElement.getNode(),
-                    i, targetElement.getIsisSysID()
+                    isisISAdjIndex, targetElement.getIsisSysID()
             );
             links.add(sourceLink);
 
             IsIsLink targetLink = createLink(++i,
                     targetElement.getNode(),
-                    i,
+                    isisISAdjIndex,
                     sourceElement.getIsisSysID()
             );
             links.add(targetLink);

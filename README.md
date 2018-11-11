@@ -9,12 +9,12 @@ Run:
 
 available parameters:
 
-parameter name | description                                                              | default value
--------------- | -------------------------------------------------------------------------|--------------
-nodes          | amount of nodes to create                                                | 10
+parameter name | description                                                                       | default value
+-------------- | ----------------------------------------------------------------------------------|--------------
+nodes          | amount of nodes to create                                                         | 10
 elements       | amount of elements to create, must not be larger than amount of nodes and  no less than 2 | amount of nodes                                                          |
-links          | amount of links                                                          | ((amount of elements)²-amount of elements)/2
-delete         | delete existing topology                                                 | false
-topology       | which type of topology to create, possible values: `random`, `ring`, `complete` | random
-protocol       | what protocol should be generated, possible values: cdp, isis, lldp      | cdp
+links          | amount of links                                                                   | ((amount of elements)²-amount of elements)/2
+delete         | delete existing topology                                                          | false
+topology       | which type of topology to create, possible values: `random`, `ring`, `complete`   | random
+protocol       | what protocol should be generated, possible values: `cdp`, `isis`, `lldp`, `ospf` | cdp
 

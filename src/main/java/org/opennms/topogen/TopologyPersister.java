@@ -37,6 +37,7 @@ import java.util.List;
 
 import javax.sql.DataSource;
 
+import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.netmgt.model.CdpElement;
 import org.opennms.netmgt.model.CdpLink;
 import org.opennms.netmgt.model.IsIsElement;
@@ -44,6 +45,7 @@ import org.opennms.netmgt.model.IsIsLink;
 import org.opennms.netmgt.model.LldpElement;
 import org.opennms.netmgt.model.LldpLink;
 import org.opennms.netmgt.model.OnmsNode;
+import org.opennms.netmgt.model.OspfLink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,6 +72,8 @@ public class TopologyPersister {
             " lldpRemPortId, lldpRemPortDescr, lldpLinkLastPollTime, lldpLinkCreateTime ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now());";
     private final static String LLDP_LINKS_DELETE = "DELETE FROM lldplink;";
 
+    private final static String OSPF_LINKS_INSERT = "INSERT INTO ospflink (id, nodeId, ospfIpAddr, ospfIpMask, ospfAddressLessIndex, ospfIfIndex, ospfRemRouterId, ospfRemIpAddr, ospfRemAddressLessIndex, ospfLinkLastPollTime, ospfLinkCreateTime ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now());";
+    private final static String OSPF_LINKS_DELETE = "DELETE FROM ospflink;";
 
     private final static Logger LOG = LoggerFactory.getLogger(TopologyPersister.class);
 
@@ -207,6 +211,24 @@ public class TopologyPersister {
         });
     }
 
+    public void persistOspfLinks(List<OspfLink> links) throws SQLException {
+        batchInsert(OSPF_LINKS_INSERT, links, new BiConsumerWithException<PreparedStatement, OspfLink>() {
+            @Override
+            public void accept(PreparedStatement stmt, OspfLink link) throws SQLException {
+                int i = 1;
+                stmt.setInt(i++, link.getId());
+                stmt.setInt(i++, link.getNode().getId());
+                stmt.setString(i++, InetAddressUtils.str(link.getOspfIpAddr()));
+                stmt.setString(i++, InetAddressUtils.str(link.getOspfIpMask()));
+                stmt.setInt(i++, link.getOspfAddressLessIndex());
+                stmt.setInt(i++, link.getOspfIfIndex());
+                stmt.setString(i++, InetAddressUtils.str(link.getOspfRemRouterId()));
+                stmt.setString(i++, InetAddressUtils.str(link.getOspfRemIpAddr()));
+                stmt.setInt(i++, link.getOspfRemAddressLessIndex());
+                stmt.setDate(i++, new java.sql.Date(link.getOspfLinkLastPollTime().getTime()));
+            }
+        });
+    }
 
     @FunctionalInterface
     public interface BiConsumerWithException<T, R> {
@@ -241,7 +263,8 @@ public class TopologyPersister {
     public void deleteTopology() throws SQLException {
         LOG.info("deleting existing topology");
         List<String> deleteOperations = Arrays.asList(CDP_LINKS_DELETE,
-                ISIS_LINKS_DELETE, LLDP_LINKS_DELETE, CDP_ELEMENTS_DELETE, ISIS_ELEMENTS_DELETE, LLDP_ELEMENTS_DELETE, NODES_DELETE);
+                ISIS_LINKS_DELETE, LLDP_LINKS_DELETE, CDP_ELEMENTS_DELETE, ISIS_ELEMENTS_DELETE, LLDP_ELEMENTS_DELETE,
+                OSPF_LINKS_DELETE, NODES_DELETE);
 
         try (Connection c = ds.getConnection()) {
             for (String sql : deleteOperations) {

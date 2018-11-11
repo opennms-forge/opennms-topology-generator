@@ -39,6 +39,7 @@ import org.kohsuke.args4j.Option;
 import org.opennms.topogen.protocol.CdpProtocol;
 import org.opennms.topogen.protocol.IsIsProtocol;
 import org.opennms.topogen.protocol.LldpProtocol;
+import org.opennms.topogen.protocol.OspfProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +54,7 @@ public class TopologyGenerator {
     }
 
     public enum Protocol{
-        cdp, isis, lldp
+        cdp, isis, lldp, ospf
     }
 
     private TopologyPersister persister;
@@ -66,12 +67,11 @@ public class TopologyGenerator {
     @Option(name="--topology",usage="type of topology (complete | ring | random)")
     @Setter
     private String topology = "random";
-    @Option(name="--protocol",usage="type of protocol (cdp | isis | lldp)")
+    @Option(name="--protocol",usage="type of protocol (cdp | isis | lldp | ospf)")
     @Setter
     private String protocol = "cdp";
     @Option(name="--delete",usage="delete existing toplogogy (all OnmsNodes, CdpElements and CdpLinks)")
     private boolean deleteExistingTolology = false;
-
 
     public TopologyGenerator(TopologyPersister persister) throws IOException {
         this.persister = persister;
@@ -103,12 +103,15 @@ public class TopologyGenerator {
     private org.opennms.topogen.protocol.Protocol getProtocol(){
         if(Protocol.cdp.name().equals(this.protocol)){
             return new CdpProtocol( Topology.valueOf(topology),
-            amountNodes, amountLinks, amountElements, persister);
+                    amountNodes, amountLinks, amountElements, persister);
         } else if (Protocol.isis.name().equals(this.protocol)) {
             return new IsIsProtocol( Topology.valueOf(topology),
                     amountNodes, amountLinks, amountElements, persister);
-        }else if (Protocol.lldp.name().equals(this.protocol)) {
+        } else if (Protocol.lldp.name().equals(this.protocol)) {
             return new LldpProtocol( Topology.valueOf(topology),
+                    amountNodes, amountLinks, amountElements, persister);
+        } else if (Protocol.ospf.name().equals(this.protocol)) {
+            return new OspfProtocol( Topology.valueOf(topology),
                     amountNodes, amountLinks, amountElements, persister);
         } else {
             throw new IllegalArgumentException("Don't know this protocol: " + this.protocol);
@@ -128,13 +131,11 @@ public class TopologyGenerator {
         }
     }
 
-
     private static void assertMoreOrEqualsThan(String message, int expected, int actual) {
         if (actual < expected) {
             throw new IllegalArgumentException(message + String.format(" minimum expected=%s but found actual=%s", expected, actual));
         }
     }
-
 
     public static void main(String args[]) throws Exception {
         TopologyGenerator generator = new TopologyGenerator(new TopologyPersister());

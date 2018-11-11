@@ -79,7 +79,7 @@ public abstract class Protocol<Element> {
         return node;
     }
 
-    protected PairGenerator<Element> createPairGenerator(List<Element> elements){
+    protected <E> PairGenerator<E> createPairGenerator(List<E> elements){
         if(TopologyGenerator.Topology.complete == topology){
             return new UndirectedPairGenerator<>(elements);
         } else if(TopologyGenerator.Topology.ring == topology) {
