@@ -5,7 +5,7 @@ Build:
 ```mvn package```
 
 Run:
-```java -jar opennms-topology-generator-21.1.0-SNAPSHOT-jar-with-dependencies.jar --nodes 3 --delete```     
+```java -jar opennms-topology-generator-21.1.0-SNAPSHOT-jar-with-dependencies.jar --nodes 3  --protocol isis --delete```     
 
 available parameters:
 
