@@ -35,40 +35,31 @@ import java.util.Date;
 import java.util.List;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.opennms.netmgt.model.CdpElement;
-import org.opennms.netmgt.model.CdpLink;
 import org.opennms.netmgt.model.OnmsNode;
 import org.opennms.netmgt.model.OspfElement;
 import org.opennms.netmgt.model.OspfLink;
 import org.opennms.topogen.TopologyGenerator;
 import org.opennms.topogen.TopologyPersister;
 import org.opennms.topogen.topology.PairGenerator;
+import org.opennms.topogen.util.InetAddressGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.net.InetAddresses;
+import lombok.Getter;
 
 public class OspfProtocol extends Protocol<OspfElement> {
     private final static Logger LOG = LoggerFactory.getLogger(OspfProtocol.class);
+    @Getter
+    private TopologyGenerator.Protocol protocol = TopologyGenerator.Protocol.ospf;
+    private InetAddressGenerator inetAddressCreator = new InetAddressGenerator();
 
-    private InetAddressCreator inetAddressCreator;
-
-    public OspfProtocol(TopologyGenerator.Topology topology, int amountNodes, int amountLinks, int amountElements, TopologyPersister persister){
-        super(topology, amountNodes, amountLinks, amountElements, persister);
-        this.inetAddressCreator = new InetAddressCreator();
+    public OspfProtocol(TopologyGenerator.Topology topology, int amountNodes, int amountLinks,
+                        int amountElements, int amountSnmpInterfaces, int amountIpInterfaces, TopologyPersister persister){
+        super(topology, amountNodes, amountLinks, amountElements, amountSnmpInterfaces, amountIpInterfaces, persister);
     }
 
     @Override
-    public void createAndPersistNetwork() throws SQLException {
-
-        LOG.info("creating {} topology with {} {}s, {} {}s and {} {}s.",
-                this.topology,
-                this.amountNodes, OnmsNode.class.getSimpleName() ,
-                this.amountElements, CdpElement.class.getSimpleName(),
-                this.amountLinks, CdpLink.class.getSimpleName());
-        List<OnmsNode> nodes = createNodes(amountNodes);
-        persister.persistNodes(nodes);
-
+    public void createAndPersistProtocolSpecificEntities(List<OnmsNode> nodes) throws SQLException {
         List<OspfLink> links = createLinks(nodes);
         persister.persistOspfLinks(links);
     }
@@ -119,14 +110,5 @@ public class OspfProtocol extends Protocol<OspfElement> {
 
 
         return link;
-    }
-
-    private final static class InetAddressCreator {
-        private InetAddress last = InetAddresses.forString("0.0.0.0");
-        public InetAddress next() {
-            InetAddress address = InetAddresses.increment(last);
-            last = address;
-            return address;
-        }
     }
 }

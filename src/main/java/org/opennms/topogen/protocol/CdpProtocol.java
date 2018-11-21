@@ -45,23 +45,20 @@ import org.opennms.topogen.topology.PairGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import lombok.Getter;
+
 public class CdpProtocol extends Protocol<CdpElement> {
     private final static Logger LOG = LoggerFactory.getLogger(CdpProtocol.class);
+    @Getter
+    private TopologyGenerator.Protocol protocol = TopologyGenerator.Protocol.cdp;
 
-    public CdpProtocol(TopologyGenerator.Topology topology, int amountNodes, int amountLinks, int amountElements, TopologyPersister persister){
-        super(topology, amountNodes, amountLinks, amountElements, persister);
+    public CdpProtocol(TopologyGenerator.Topology topology, int amountNodes, int amountLinks,
+                       int amountElements, int amountSnmpInterfaces, int amountIpInterfaces, TopologyPersister persister){
+        super(topology, amountNodes, amountLinks, amountElements, amountSnmpInterfaces, amountIpInterfaces, persister);
     }
 
     @Override
-    public void createAndPersistNetwork() throws SQLException {
-
-        LOG.info("creating {} topology with {} {}s, {} {}s and {} {}s.",
-                this.topology,
-                this.amountNodes, OnmsNode.class.getSimpleName() ,
-                this.amountElements, CdpElement.class.getSimpleName(),
-                this.amountLinks, CdpLink.class.getSimpleName());
-        List<OnmsNode> nodes = createNodes(amountNodes);
-        persister.persistNodes(nodes);
+    public void createAndPersistProtocolSpecificEntities(List<OnmsNode> nodes) throws SQLException {
         List<CdpElement> cdpElements = createCdpElements(nodes);
         persister.persistCdpElements(cdpElements);
         List<CdpLink> links = createCdpLinks(cdpElements);

@@ -64,6 +64,10 @@ public class TopologyGenerator {
     private int amountElements = -1;
     @Option(name="--links",usage="generate <N> CdpLinks")
     private int amountLinks = -1;
+    @Option(name="--snmpinterfaces",usage="generate <N> SnmpInterfaces but not more than amount nodes")
+    private int amountSnmpInterfaces = 0;
+    @Option(name="--ipinterfaces",usage="generate <N> IpInterfaces but not more than amount snmp interfaces")
+    private int amountIpInterfaces = 0;
     @Option(name="--topology",usage="type of topology (complete | ring | random)")
     @Setter
     private String topology = "random";
@@ -82,8 +86,11 @@ public class TopologyGenerator {
             amountElements = amountNodes;
         }
         if(amountLinks == -1){
-            amountLinks = (amountElements * amountElements)-amountElements;
+            amountLinks = 2 * amountNodes;
         }
+        this.amountSnmpInterfaces = Math.min(amountSnmpInterfaces, this.amountNodes);
+        this.amountIpInterfaces = Math.min(amountIpInterfaces, amountSnmpInterfaces);
+
         // do basic checks to get configuration right:
         assertMoreOrEqualsThan("we need at least as many nodes as elements", amountElements, amountNodes);
         assertMoreOrEqualsThan("we need at least 2 nodes", 2, amountNodes);
@@ -91,6 +98,7 @@ public class TopologyGenerator {
         assertMoreOrEqualsThan("we need at least 1 link", 1, amountLinks);
 
         Topology.valueOf(topology); // check if valid parameter
+        Protocol.valueOf(protocol); // check if valid parameter
     }
 
     private void createNetwork() throws SQLException {
@@ -103,16 +111,16 @@ public class TopologyGenerator {
     private org.opennms.topogen.protocol.Protocol getProtocol(){
         if(Protocol.cdp.name().equals(this.protocol)){
             return new CdpProtocol( Topology.valueOf(topology),
-                    amountNodes, amountLinks, amountElements, persister);
+                    amountNodes, amountLinks, amountElements, amountSnmpInterfaces, amountIpInterfaces, persister);
         } else if (Protocol.isis.name().equals(this.protocol)) {
             return new IsIsProtocol( Topology.valueOf(topology),
-                    amountNodes, amountLinks, amountElements, persister);
+                    amountNodes, amountLinks, amountElements, amountSnmpInterfaces, amountIpInterfaces, persister);
         } else if (Protocol.lldp.name().equals(this.protocol)) {
             return new LldpProtocol( Topology.valueOf(topology),
-                    amountNodes, amountLinks, amountElements, persister);
+                    amountNodes, amountLinks, amountElements, amountSnmpInterfaces, amountIpInterfaces, persister);
         } else if (Protocol.ospf.name().equals(this.protocol)) {
             return new OspfProtocol( Topology.valueOf(topology),
-                    amountNodes, amountLinks, amountElements, persister);
+                    amountNodes, amountLinks, amountElements, amountSnmpInterfaces, amountIpInterfaces, persister);
         } else {
             throw new IllegalArgumentException("Don't know this protocol: " + this.protocol);
         }

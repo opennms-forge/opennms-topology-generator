@@ -44,7 +44,9 @@ import org.opennms.netmgt.model.IsIsElement;
 import org.opennms.netmgt.model.IsIsLink;
 import org.opennms.netmgt.model.LldpElement;
 import org.opennms.netmgt.model.LldpLink;
+import org.opennms.netmgt.model.OnmsIpInterface;
 import org.opennms.netmgt.model.OnmsNode;
+import org.opennms.netmgt.model.OnmsSnmpInterface;
 import org.opennms.netmgt.model.OspfLink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,6 +76,14 @@ public class TopologyPersister {
 
     private final static String OSPF_LINKS_INSERT = "INSERT INTO ospflink (id, nodeId, ospfIpAddr, ospfIpMask, ospfAddressLessIndex, ospfIfIndex, ospfRemRouterId, ospfRemIpAddr, ospfRemAddressLessIndex, ospfLinkLastPollTime, ospfLinkCreateTime ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now());";
     private final static String OSPF_LINKS_DELETE = "DELETE FROM ospflink;";
+
+    private final static String ONMS_INTERFACES_INSERT  = "INSERT INTO snmpinterface (id, snmpPhysAddr, snmpIfIndex, snmpIfDescr," +
+            " snmpIfType, snmpIfName, snmpIfSpeed, snmpIfAdminStatus, snmpIfOperStatus, snmpIfAlias, snmpLastCapsdPoll," +
+            " snmpCollect, snmpPoll, snmpLastSnmpPoll, nodeId, hasFlows ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+    private final static String ONMS_INTERFACES_DELETE = "DELETE FROM snmpinterface;";
+
+    private final static String IP_INTERFACES_INSERT = "INSERT INTO ipinterface (id, ipHostName, isManaged, ipLastCapsdPoll, isSnmpPrimary, nodeId, snmpInterfaceId, ipAddr, netmask) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
+    private final static String IP_INTERFACES_DELETE = "DELETE FROM ipinterface;";
 
     private final static Logger LOG = LoggerFactory.getLogger(TopologyPersister.class);
 
@@ -230,6 +240,49 @@ public class TopologyPersister {
         });
     }
 
+    public void persistOnmsInterfaces(List<OnmsSnmpInterface> onmsSnmpInterfaces) throws SQLException{
+        batchInsert(ONMS_INTERFACES_INSERT, onmsSnmpInterfaces, new BiConsumerWithException<PreparedStatement, OnmsSnmpInterface>() {
+            @Override
+            public void accept(PreparedStatement stmt, OnmsSnmpInterface snmpInterface) throws SQLException {
+                int i = 1;
+                stmt.setInt(i++, snmpInterface.getId());
+                stmt.setString(i++, snmpInterface.getPhysAddr());
+                stmt.setInt(i++, snmpInterface.getIfIndex());
+                stmt.setString(i++, snmpInterface.getIfDescr());
+                stmt.setInt(i++, snmpInterface.getIfType());
+                stmt.setString(i++, snmpInterface.getIfName());
+                stmt.setLong(i++, snmpInterface.getIfSpeed());
+                stmt.setInt(i++, snmpInterface.getIfAdminStatus());
+                stmt.setInt(i++, snmpInterface.getIfOperStatus());
+                stmt.setString(i++, snmpInterface.getIfAlias());
+                stmt.setDate(i++, new java.sql.Date(snmpInterface.getLastCapsdPoll().getTime()));
+                stmt.setString(i++, snmpInterface.getCollect());
+                stmt.setString(i++, snmpInterface.getPoll());
+                stmt.setDate(i++, new java.sql.Date(snmpInterface.getLastSnmpPoll().getTime()));
+                stmt.setInt(i++, snmpInterface.getNode().getId());
+                stmt.setBoolean(i++, snmpInterface.getHasFlows());
+            }
+        });
+    }
+
+    public void persistIpInterfaces(List<OnmsIpInterface> ipInterfaces) throws SQLException {
+        batchInsert(IP_INTERFACES_INSERT, ipInterfaces, new BiConsumerWithException<PreparedStatement, OnmsIpInterface>() {
+            @Override
+            public void accept(PreparedStatement stmt, OnmsIpInterface ip) throws SQLException {
+                int i = 1;
+                stmt.setInt(i++, ip.getId());
+                stmt.setString(i++, ip.getIpHostName());
+                stmt.setString(i++, ip.getIsManaged());
+                stmt.setDate(i++, new java.sql.Date(ip.getIpLastCapsdPoll().getTime()));
+                stmt.setString(i++, ip.getPrimaryString());
+                stmt.setInt(i++, ip.getNode().getId());
+                stmt.setInt(i++, ip.getSnmpInterface().getId());
+                stmt.setString(i++, InetAddressUtils.str(ip.getIpAddress()));
+                stmt.setString(i++, InetAddressUtils.str(ip.getNetMask()));
+            }
+        });
+    }
+
     @FunctionalInterface
     public interface BiConsumerWithException<T, R> {
         void accept(T t, R r) throws SQLException;
@@ -264,7 +317,7 @@ public class TopologyPersister {
         LOG.info("deleting existing topology");
         List<String> deleteOperations = Arrays.asList(CDP_LINKS_DELETE,
                 ISIS_LINKS_DELETE, LLDP_LINKS_DELETE, CDP_ELEMENTS_DELETE, ISIS_ELEMENTS_DELETE, LLDP_ELEMENTS_DELETE,
-                OSPF_LINKS_DELETE, NODES_DELETE);
+                OSPF_LINKS_DELETE, IP_INTERFACES_DELETE, ONMS_INTERFACES_DELETE, NODES_DELETE);
 
         try (Connection c = ds.getConnection()) {
             for (String sql : deleteOperations) {

@@ -45,23 +45,19 @@ import org.opennms.topogen.topology.PairGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import lombok.Getter;
+
 public class LldpProtocol extends Protocol<LldpElement> {
     private final static Logger LOG = LoggerFactory.getLogger(IsIsProtocol.class);
-
-    public LldpProtocol(TopologyGenerator.Topology topology, int amountNodes, int amountLinks, int amountElements, TopologyPersister persister){
-        super(topology, amountNodes, amountLinks, amountElements, persister);
+    @Getter
+    private TopologyGenerator.Protocol protocol = TopologyGenerator.Protocol.lldp;
+    public LldpProtocol(TopologyGenerator.Topology topology, int amountNodes, int amountLinks,
+                        int amountElements, int amountSnmpInterfaces, int amountIpInterfaces, TopologyPersister persister){
+        super(topology, amountNodes, amountLinks, amountElements, amountSnmpInterfaces, amountIpInterfaces, persister);
     }
 
     @Override
-    public void createAndPersistNetwork() throws SQLException {
-
-        LOG.info("creating {} topology with {} {}s, {} {}s and {} {}s.",
-                this.topology,
-                this.amountNodes, OnmsNode.class.getSimpleName() ,
-                this.amountElements, LldpElement.class.getSimpleName(),
-                this.amountLinks, LldpLink.class.getSimpleName());
-        List<OnmsNode> nodes = createNodes(amountNodes);
-        persister.persistNodes(nodes);
+    public void createAndPersistProtocolSpecificEntities(List<OnmsNode> nodes) throws SQLException {
         List<LldpElement> elements = createElements(nodes);
         persister.persistLldpElements(elements);
         List<LldpLink> links = createLinks(elements);
